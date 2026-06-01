@@ -5,12 +5,14 @@
   --ink: #16211d;
   --muted: #69716c;
   --line: #ded8cb;
+  --line-strong: #cbc3b5;
   --green: #177d62;
   --green-dark: #0f604c;
   --coral: #dd684f;
   --gold: #c69c35;
   --blue: #2e6f9f;
   --shadow: 0 16px 40px rgba(26, 33, 29, 0.1);
+  --shadow-soft: 0 8px 22px rgba(26, 33, 29, 0.07);
 }
 
 * {
@@ -272,6 +274,12 @@ textarea:focus {
   border: 1px solid transparent;
   border-radius: 8px;
   font-weight: 800;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .icon-btn {
@@ -306,11 +314,37 @@ textarea:focus {
   background: var(--green-dark);
 }
 
+.tool-btn:hover,
+.plain-btn:hover,
+.icon-btn:hover,
+.tab:hover,
+.segment:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.tool-btn:active,
+.plain-btn:active,
+.icon-btn:active,
+.primary-btn:active,
+.danger-btn:active,
+.status-btn:active,
+.tab:active,
+.segment:active {
+  transform: translateY(1px);
+}
+
 .danger-btn {
   padding: 0 12px;
   color: #8f2a1d;
   background: #fff8f5;
   border-color: #efc4b8;
+}
+
+.danger-btn:hover {
+  color: #fff;
+  background: #a73927;
+  border-color: #a73927;
 }
 
 .summary-band {
@@ -476,14 +510,42 @@ textarea:focus {
 }
 
 .event-card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   padding: 16px;
+  box-shadow: var(--shadow-soft);
 }
 
 .event-card.is-canceled {
   background: #fff7f4;
+}
+
+.event-card.is-next {
+  border-color: rgba(23, 125, 98, 0.42);
+}
+
+.event-card.is-next::before,
+.event-card.is-finalized::before,
+.event-card.is-canceled::before {
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 4px;
+  content: "";
+  border-radius: 8px 0 0 8px;
+}
+
+.event-card.is-next::before {
+  background: var(--green);
+}
+
+.event-card.is-finalized::before {
+  background: var(--blue);
+}
+
+.event-card.is-canceled::before {
+  background: var(--coral);
 }
 
 .event-main {
@@ -546,11 +608,47 @@ textarea:focus {
   font-size: 0.8rem;
 }
 
+.event-progress {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.event-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: rgba(22, 33, 29, 0.08);
+  border-radius: 999px;
+}
+
+.event-progress-fill {
+  display: block;
+  width: var(--progress);
+  height: 100%;
+  background: var(--green);
+  border-radius: inherit;
+}
+
+.event-progress-text {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .event-actions {
   display: grid;
   align-content: start;
   gap: 8px;
   min-width: 220px;
+}
+
+.rsvp-summary {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .status-group {
@@ -589,6 +687,11 @@ textarea:focus {
 .primary-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.status-btn:not(:disabled):hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
 }
 
 .secondary-actions {

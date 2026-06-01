@@ -727,7 +727,7 @@ function renderDashboard() {
   const activeMember = getActiveMember();
   const events = getSortedEvents().filter(eventMatchesDashboardFilter);
 
-  renderDashboardFilterButtons();
+  renderDashboardFilterButtons(events);
   els.eventList.innerHTML = renderEventGroup(
     getDashboardFilterLabel(dashboardFilter),
     getDashboardFilteredEvents(events),
@@ -735,10 +735,29 @@ function renderDashboard() {
   );
 }
 
-function renderDashboardFilterButtons() {
+function renderDashboardFilterButtons(events) {
+  const counts = getDashboardFilterCounts(events);
   document.querySelectorAll("[data-dashboard-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.dashboardFilter === dashboardFilter);
+    const filter = button.dataset.dashboardFilter;
+    button.classList.toggle("is-active", filter === dashboardFilter);
+    button.textContent = `${getDashboardFilterShortLabel(filter)} ${counts[filter]}`;
   });
+}
+
+function getDashboardFilterCounts(events) {
+  return {
+    all: events.length,
+    pending: events.filter((event) => !isEventCanceled(event) && !event.finalizedAt).length,
+    canceled: events.filter((event) => isEventCanceled(event)).length,
+    completed: events.filter((event) => Boolean(event.finalizedAt)).length,
+  };
+}
+
+function getDashboardFilterShortLabel(filter) {
+  if (filter === "pending") return "대기중";
+  if (filter === "canceled") return "취소됨";
+  if (filter === "completed") return "완료됨";
+  return "전체";
 }
 
 function renderFeedback() {
@@ -794,6 +813,7 @@ function eventMatchesDashboardFilter(event) {
 function renderEventCard(event, member) {
   const isFinalized = Boolean(event.finalizedAt);
   const isCanceled = isEventCanceled(event);
+  const isNextEvent = getNextUpcomingEvent()?.id === event.id;
   const rsvp = getRsvp(event, member.id);
   const creator = state.members.find((candidate) => candidate.id === event.createdBy);
   const attendingCount = countAttendingRsvps(event);
@@ -809,17 +829,21 @@ function renderEventCard(event, member) {
       : isPastEvent(event)
         ? `<span class="pill coral">출석 확인 전</span>`
         : `<span class="pill blue">신청 ${attendingCount}${capacity}명</span>`;
+  const nextPill = isNextEvent ? `<span class="pill green">다음 일정</span>` : "";
+  const myStatusPill = `<span class="pill">내 상태 ${escapeHtml(RSVP_LABELS[rsvp])}</span>`;
   const locked = isFinalized || isCanceled ? "disabled" : "";
   const rsvpHint = isCanceled
     ? `<p class="event-note small">${escapeHtml(event.canceledReason || "취소된 일정입니다.")}</p>`
     : isFinalized
       ? `<p class="event-note small">운영진이 출석을 확정한 일정이라 참석 상태를 변경할 수 없습니다.</p>`
       : "";
+  const progress = renderEventProgress(event, attendingCount);
 
   return `
-    <article class="event-card ${isCanceled ? "is-canceled" : ""}" id="event-${escapeHtml(event.id)}">
+    <article class="event-card ${getEventCardClass({ isCanceled, isFinalized, isNextEvent })}" id="event-${escapeHtml(event.id)}">
       <div class="event-main">
         <div class="event-meta">
+          ${nextPill}
           <span class="pill">${escapeHtml(formatShortRange(event))}</span>
           <span class="pill">${escapeHtml(event.location)}</span>
           ${statusPill}
@@ -828,8 +852,10 @@ function renderEventCard(event, member) {
         <h3>${escapeHtml(event.title)}</h3>
         <p class="event-note">${escapeHtml(event.note || "메모 없음")}</p>
         <p class="event-note">등록: ${escapeHtml(creator?.name || "알 수 없음")}</p>
+        ${progress}
       </div>
       <div class="event-actions">
+        <div class="rsvp-summary">${myStatusPill}</div>
         <div class="status-group" aria-label="참석 상태">
           ${renderStatusButton(event, "attending", rsvp, locked)}
           ${renderStatusButton(event, "maybe", rsvp, locked)}
@@ -863,6 +889,38 @@ function renderEventCard(event, member) {
   `;
 }
 
+function getEventCardClass({ isCanceled, isFinalized, isNextEvent }) {
+  return [
+    isCanceled ? "is-canceled" : "",
+    isFinalized ? "is-finalized" : "",
+    isNextEvent ? "is-next" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderEventProgress(event, attendingCount) {
+  if (event.finalizedAt || isEventCanceled(event)) return "";
+
+  const targetCount = event.capacity || event.minAttendees || Math.max(attendingCount, 1);
+  const progress = Math.min(100, Math.round((attendingCount / targetCount) * 100));
+  const minLabel = event.minAttendees ? `최소 ${event.minAttendees}명` : "";
+  const capacityLabel = event.capacity ? `정원 ${event.capacity}명` : "";
+  const details = [minLabel, capacityLabel].filter(Boolean).join(" · ");
+
+  return `
+    <div class="event-progress" aria-label="참석 신청 현황">
+      <div class="event-progress-track">
+        <span class="event-progress-fill" style="--progress: ${progress}%"></span>
+      </div>
+      <div class="event-progress-text">
+        <span>신청 ${attendingCount}명</span>
+        ${details ? `<span>${escapeHtml(details)}</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
 function renderStatusButton(event, status, currentStatus, locked) {
   const isActive = currentStatus === status;
   return `
@@ -872,6 +930,8 @@ function renderStatusButton(event, status, currentStatus, locked) {
       data-action="set-rsvp"
       data-event-id="${escapeHtml(event.id)}"
       data-status="${status}"
+      aria-pressed="${isActive ? "true" : "false"}"
+      title="내 참석 상태: ${escapeHtml(RSVP_LABELS[status])}"
       ${locked}
     >
       ${RSVP_LABELS[status]}
@@ -896,7 +956,7 @@ function renderAdmin() {
   const month = els.reportMonth.value;
   const monthEvents = getSortedEvents().filter((event) => getMonthKey(new Date(event.startAt)) === month);
 
-  renderConfirmFilterButtons();
+  renderConfirmFilterButtons(monthEvents);
   els.signupRequests.innerHTML = renderSignupRequests();
   els.adminFeedbackList.innerHTML = renderFeedbackItems(getSortedFeedbackItems(), { admin: true });
   els.adminReport.innerHTML = renderReportTable(month, monthEvents);
@@ -904,10 +964,28 @@ function renderAdmin() {
   els.confirmQueue.innerHTML = renderConfirmQueue(monthEvents);
 }
 
-function renderConfirmFilterButtons() {
+function renderConfirmFilterButtons(monthEvents) {
+  const counts = getConfirmFilterCounts(monthEvents);
   document.querySelectorAll("[data-confirm-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.confirmFilter === confirmFilter);
+    const filter = button.dataset.confirmFilter;
+    button.classList.toggle("is-active", filter === confirmFilter);
+    button.textContent = `${getConfirmFilterShortLabel(filter)} ${counts[filter]}`;
   });
+}
+
+function getConfirmFilterCounts(monthEvents) {
+  const activeEvents = monthEvents.filter((event) => !isEventCanceled(event));
+  return {
+    needs: activeEvents.filter((event) => isPastEvent(event) && !event.finalizedAt).length,
+    upcoming: activeEvents.filter((event) => !isPastEvent(event) && !event.finalizedAt).length,
+    finalized: activeEvents.filter((event) => Boolean(event.finalizedAt)).length,
+  };
+}
+
+function getConfirmFilterShortLabel(filter) {
+  if (filter === "upcoming") return "진행 예정";
+  if (filter === "finalized") return "확정 완료";
+  return "확정 필요";
 }
 
 function renderReportTable(month, monthEvents) {
@@ -2037,6 +2115,10 @@ function countMemberEvents(memberId) {
 
 function getSortedEvents() {
   return [...state.events].sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+}
+
+function getNextUpcomingEvent() {
+  return getSortedEvents().find((event) => !isPastEvent(event) && !isEventCanceled(event));
 }
 
 function getSortedFeedbackItems() {
