@@ -189,9 +189,9 @@ h3 {
 }
 
 .identity > span,
-.auth-form span,
-.event-form span,
-.member-dialog span,
+.auth-form label > span,
+.event-form label > span,
+.member-dialog label > span,
 .member-dialog textarea + span {
   color: var(--muted);
   font-size: 0.82rem;
@@ -289,6 +289,10 @@ textarea:focus {
   color: #fff;
   background: var(--green);
   border-color: var(--green);
+}
+
+.primary-btn span {
+  color: inherit;
 }
 
 .primary-btn:hover {
