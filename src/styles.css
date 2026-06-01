@@ -1000,22 +1000,112 @@ textarea:focus {
 }
 
 @media (max-width: 760px) {
+  body {
+    padding-bottom: 74px;
+  }
+
   .app-shell {
     width: min(100% - 22px, 1180px);
-    padding-top: 14px;
+    padding-top: 12px;
+    padding-bottom: 24px;
   }
 
   .topbar {
     display: grid;
+    gap: 12px;
     align-items: stretch;
+    padding: 12px 0 14px;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 46px;
+    height: 56px;
+    padding: 5px;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+  }
+
+  h2 {
+    font-size: 1.22rem;
+  }
+
+  .identity {
+    min-width: 0;
+  }
+
+  .account-card {
+    min-height: 44px;
+    padding: 6px;
+    padding-left: 10px;
+  }
+
+  .account-card strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-actions {
+    flex-wrap: nowrap;
   }
 
   .summary-band {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    box-shadow: var(--shadow-soft);
   }
 
   .metric {
-    min-height: 92px;
+    min-height: 74px;
+    padding: 14px;
+  }
+
+  .metric-value {
+    margin-bottom: 6px;
+    font-size: 1.65rem;
+  }
+
+  .metric-label {
+    font-size: 0.78rem;
+  }
+
+  .next-metric {
+    grid-column: 1 / -1;
+  }
+
+  .split-metric {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .metric-value.compact {
+    font-size: 0.95rem;
+    white-space: normal;
+  }
+
+  .tabs {
+    position: sticky;
+    bottom: 10px;
+    z-index: 20;
+    gap: 6px;
+    margin: 16px -2px 16px;
+    padding: 6px;
+    background: rgba(255, 250, 240, 0.92);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .tab {
+    flex: 1 0 auto;
+    min-height: 38px;
+    padding: 0 12px;
   }
 
   .section-head,
@@ -1026,20 +1116,58 @@ textarea:focus {
   }
 
   .dashboard-tools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-content: stretch;
   }
 
+  .dashboard-tools .segmented-control,
   .dashboard-tools label,
   .dashboard-tools button {
-    flex: 1 1 150px;
+    width: 100%;
+  }
+
+  .dashboard-tools .segmented-control {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .dashboard-tools label {
+    min-width: 0;
+  }
+
+  .dashboard-tools input {
+    min-width: 0;
+  }
+
+  .dashboard-tools > button {
+    min-width: 0;
+    padding: 0 8px;
   }
 
   .event-card {
     grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 14px;
   }
 
   .event-actions {
     min-width: 0;
+  }
+
+  .rsvp-summary {
+    justify-content: flex-start;
+  }
+
+  .status-group {
+    gap: 7px;
+  }
+
+  .status-btn {
+    min-height: 44px;
+    padding: 0 8px;
   }
 
   .secondary-actions {
@@ -1048,7 +1176,22 @@ textarea:focus {
 
   .secondary-actions > button,
   .secondary-actions > .tool-btn {
-    flex: 1 1 140px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .event-progress-text {
+    font-size: 0.74rem;
+  }
+
+  .event-meta {
+    gap: 6px;
+  }
+
+  .pill {
+    min-height: 24px;
+    padding: 3px 7px;
   }
 
   .form-grid,
@@ -1063,5 +1206,11 @@ textarea:focus {
   .month-tools input,
   .month-tools button {
     flex: 1 1 0;
+  }
+
+  .toast {
+    right: 11px;
+    bottom: 86px;
+    max-width: calc(100% - 22px);
   }
 }
