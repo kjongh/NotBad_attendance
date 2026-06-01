@@ -25,13 +25,18 @@ NOTBAD 스포츠 클럽의 일정 생성, 참석 신청, 운영진 출석 확정
 
 ## 실행
 
-의존성 설치 없이 브라우저에서 바로 열 수 있습니다.
+Vite 기반 프론트엔드 앱입니다.
 
 ```bash
-python3 -m http.server 4173
+npm install
+npm run dev
 ```
 
-그 다음 `http://localhost:4173`으로 접속합니다. 단순 확인만 할 때는 `index.html` 파일을 직접 열어도 됩니다.
+그 다음 터미널에 표시되는 로컬 주소로 접속합니다. 배포용 파일은 아래 명령으로 생성합니다.
+
+```bash
+npm run build
+```
 
 ## 초기값
 

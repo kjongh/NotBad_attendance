@@ -1,3 +1,5 @@
+import "./styles.css";
+
 const STORAGE_KEY = "notbad.attendance.v1";
 const SESSION_KEY = "notbad.session.v1";
 const KST_TIME_ZONE = "Asia/Seoul";
