@@ -43,6 +43,7 @@ const state = {
   events: [],
   signupRequests: [],
   feedbackItems: [],
+  demoEventsSeededAt: null,
 };
 let activeMemberId = null;
 let activeView = "dashboard";
@@ -181,6 +182,7 @@ function replaceState(nextState) {
   state.events = nextState.events;
   state.signupRequests = nextState.signupRequests;
   state.feedbackItems = nextState.feedbackItems;
+  state.demoEventsSeededAt = nextState.demoEventsSeededAt || null;
 }
 
 function bindEvents() {
@@ -349,6 +351,7 @@ function loadState() {
   }
 
   const now = new Date().toISOString();
+  const events = createDemoEvents(now, SEED_ADMIN_MEMBER_ID);
   return {
     club: {
       name: "NOTBAD",
@@ -369,9 +372,10 @@ function loadState() {
         createdAt: now,
       },
     ],
-    events: [],
+    events,
     signupRequests: [],
     feedbackItems: [],
+    demoEventsSeededAt: now,
   };
 }
 
@@ -435,7 +439,121 @@ function migrateState(nextState) {
     }
   }
 
+  nextState.demoEventsSeededAt = nextState.demoEventsSeededAt || null;
+  if (!nextState.events.length && !nextState.demoEventsSeededAt) {
+    const demoCreator = nextState.members.find((member) => isOperationalRole(member.role)) || nextState.members[0];
+    nextState.events = createDemoEvents(now, demoCreator.id);
+    nextState.demoEventsSeededAt = now;
+  }
+
   return nextState;
+}
+
+function createDemoEvents(createdAt, creatorId) {
+  const runningStart = getDemoDateTimeIso(3, 2, "19:30");
+  const runningEnd = getDemoDateTimeIso(3, 2, "21:00");
+  const futsalStart = getDemoDateTimeIso(6, 5, "10:00");
+  const futsalEnd = getDemoDateTimeIso(6, 5, "12:00");
+  const basketballStart = getDemoDateTimeIso(0, 6, "15:00");
+  const basketballEnd = getDemoDateTimeIso(0, 6, "17:00");
+
+  return [
+    {
+      id: "event-demo-running",
+      title: "수요 러닝",
+      location: "한강공원 러닝 코스",
+      startAt: runningStart,
+      endAt: runningEnd,
+      capacity: 12,
+      minAttendees: 4,
+      cancelAt: offsetIso(runningStart, -6 * 60 * 60 * 1000),
+      canceledAt: null,
+      canceledReason: null,
+      canceledBy: null,
+      note: "가볍게 몸 풀고 5km 정도 함께 뛰는 예시 일정입니다.",
+      createdBy: creatorId,
+      createdAt,
+      rsvps: {
+        [creatorId]: "attending",
+      },
+      attendanceDraft: {},
+      confirmedAttendance: {},
+      finalApprovalIds: [],
+      finalizedAt: null,
+      finalizedBy: null,
+    },
+    {
+      id: "event-demo-futsal",
+      title: "토요 풋살",
+      location: "NOTBAD 풋살장",
+      startAt: futsalStart,
+      endAt: futsalEnd,
+      capacity: 14,
+      minAttendees: 8,
+      cancelAt: offsetIso(futsalStart, -18 * 60 * 60 * 1000),
+      canceledAt: null,
+      canceledReason: null,
+      canceledBy: null,
+      note: "팀을 나눠 2시간 진행하는 예시 일정입니다.",
+      createdBy: creatorId,
+      createdAt,
+      rsvps: {
+        [creatorId]: "attending",
+      },
+      attendanceDraft: {},
+      confirmedAttendance: {},
+      finalApprovalIds: [],
+      finalizedAt: null,
+      finalizedBy: null,
+    },
+    {
+      id: "event-demo-basketball",
+      title: "일요 농구",
+      location: "실내 체육관",
+      startAt: basketballStart,
+      endAt: basketballEnd,
+      capacity: 10,
+      minAttendees: 6,
+      cancelAt: offsetIso(basketballStart, -24 * 60 * 60 * 1000),
+      canceledAt: null,
+      canceledReason: null,
+      canceledBy: null,
+      note: "초보자도 참여 가능한 슈팅/게임 예시 일정입니다.",
+      createdBy: creatorId,
+      createdAt,
+      rsvps: {
+        [creatorId]: "attending",
+      },
+      attendanceDraft: {},
+      confirmedAttendance: {},
+      finalApprovalIds: [],
+      finalizedAt: null,
+      finalizedBy: null,
+    },
+  ];
+}
+
+function getDemoDateTimeIso(targetWeekday, minDaysAhead, timeValue) {
+  return toKstIso(getUpcomingKstDate(targetWeekday, minDaysAhead), timeValue);
+}
+
+function getUpcomingKstDate(targetWeekday, minDaysAhead) {
+  const parts = getDateParts(new Date());
+  const today = new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+  let daysUntil = (targetWeekday - today.getDay() + 7) % 7;
+  if (daysUntil < minDaysAhead) daysUntil += 7;
+
+  const date = new Date(today);
+  date.setDate(today.getDate() + daysUntil);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function offsetIso(isoValue, offsetMs) {
+  return new Date(new Date(isoValue).getTime() + offsetMs).toISOString();
 }
 
 function createOwnerMember(createdAt) {
