@@ -63,7 +63,14 @@ const els = {
   signupPin: document.querySelector("#signupPin"),
   currentMemberName: document.querySelector("#currentMemberName"),
   currentMemberRole: document.querySelector("#currentMemberRole"),
+  openPinDialogBtn: document.querySelector("#openPinDialogBtn"),
   logoutBtn: document.querySelector("#logoutBtn"),
+  pinDialog: document.querySelector("#pinDialog"),
+  pinForm: document.querySelector("#pinForm"),
+  closePinDialog: document.querySelector("#closePinDialog"),
+  currentPin: document.querySelector("#currentPin"),
+  newPin: document.querySelector("#newPin"),
+  confirmNewPin: document.querySelector("#confirmNewPin"),
   memberDialog: document.querySelector("#memberDialog"),
   memberForm: document.querySelector("#memberForm"),
   closeMemberDialog: document.querySelector("#closeMemberDialog"),
@@ -197,6 +204,8 @@ function bindEvents() {
     logout();
   });
 
+  els.openPinDialogBtn.addEventListener("click", openPinDialog);
+
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       if (!requireLogin()) return;
@@ -227,8 +236,17 @@ function bindEvents() {
     els.memberDialog.close();
   });
 
+  els.closePinDialog.addEventListener("click", () => {
+    els.pinDialog.close();
+  });
+
   els.closeEditEventDialog.addEventListener("click", () => {
     els.editEventDialog.close();
+  });
+
+  els.pinForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    changePin();
   });
 
   els.memberForm.addEventListener("submit", (event) => {
@@ -1147,6 +1165,56 @@ function logout() {
   localStorage.removeItem(SESSION_KEY);
   activeView = "dashboard";
   setAuthMode("login");
+  render();
+}
+
+function openPinDialog() {
+  if (!requireLogin()) return;
+
+  els.pinForm.reset();
+  els.pinDialog.showModal();
+  els.currentPin.focus();
+}
+
+async function changePin() {
+  if (!requireLogin()) return;
+
+  const member = getActiveMember();
+  const currentPin = els.currentPin.value.trim();
+  const newPin = els.newPin.value.trim();
+  const confirmNewPin = els.confirmNewPin.value.trim();
+
+  if (!isValidPin(currentPin) || !isValidPin(newPin) || !isValidPin(confirmNewPin)) {
+    showToast("PIN은 숫자 6자리여야 합니다.");
+    return;
+  }
+  if (newPin !== confirmNewPin) {
+    showToast("새 PIN 확인이 일치하지 않습니다.");
+    return;
+  }
+  if (currentPin === newPin) {
+    showToast("새 PIN은 현재 PIN과 달라야 합니다.");
+    return;
+  }
+
+  if (!member.pinHash) {
+    els.pinDialog.close();
+    logout();
+    showToast("PIN이 아직 설정되지 않았습니다. 다시 로그인해서 먼저 설정해주세요.");
+    return;
+  }
+
+  const currentHash = await hashPin(member.name, currentPin);
+  if (member.pinHash !== currentHash) {
+    showToast("현재 PIN이 맞지 않습니다.");
+    return;
+  }
+
+  member.pinHash = await hashPin(member.name, newPin);
+  saveState();
+  els.pinForm.reset();
+  els.pinDialog.close();
+  showToast("PIN을 변경했습니다.");
   render();
 }
 

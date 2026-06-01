@@ -221,6 +221,13 @@ h3 {
   font-weight: 750;
 }
 
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 select,
 input,
 textarea {

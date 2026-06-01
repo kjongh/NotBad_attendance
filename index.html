@@ -76,10 +76,16 @@
               <strong id="currentMemberName">-</strong>
               <small id="currentMemberRole">회원</small>
             </div>
-            <button id="logoutBtn" class="tool-btn" type="button" title="로그아웃">
-              <span aria-hidden="true">↩</span>
-              <span>로그아웃</span>
-            </button>
+            <div class="account-actions">
+              <button id="openPinDialogBtn" class="tool-btn" type="button" title="PIN 변경">
+                <span aria-hidden="true">✎</span>
+                <span>PIN</span>
+              </button>
+              <button id="logoutBtn" class="tool-btn" type="button" title="로그아웃">
+                <span aria-hidden="true">↩</span>
+                <span>로그아웃</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -333,6 +339,37 @@
           <button class="primary-btn" type="submit">
             <span aria-hidden="true">+</span>
             <span>추가</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="pinDialog" class="member-dialog">
+      <form id="pinForm" method="dialog">
+        <div class="dialog-head">
+          <h2>PIN 변경</h2>
+          <button id="closePinDialog" class="icon-btn" type="button" title="닫기" aria-label="닫기">×</button>
+        </div>
+
+        <label>
+          <span>현재 PIN</span>
+          <input id="currentPin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="current-password" />
+        </label>
+
+        <label>
+          <span>새 PIN</span>
+          <input id="newPin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password" />
+        </label>
+
+        <label>
+          <span>새 PIN 확인</span>
+          <input id="confirmNewPin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password" />
+        </label>
+
+        <div class="dialog-actions">
+          <button class="primary-btn" type="submit">
+            <span aria-hidden="true">✓</span>
+            <span>변경</span>
           </button>
         </div>
       </form>
