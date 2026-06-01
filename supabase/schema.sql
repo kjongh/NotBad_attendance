@@ -5,10 +5,14 @@
 create table if not exists public.members (
   id text primary key,
   name text not null unique,
-  role text not null default 'member' check (role in ('member', 'admin')),
+  role text not null default 'member' check (role in ('member', 'admin', 'owner')),
   pin_hash text,
   created_at timestamptz not null default now()
 );
+
+alter table public.members drop constraint if exists members_role_check;
+alter table public.members
+  add constraint members_role_check check (role in ('member', 'admin', 'owner'));
 
 create table if not exists public.signup_requests (
   id text primary key,
@@ -70,7 +74,9 @@ create table if not exists public.final_approvals (
 );
 
 insert into public.members (id, name, role, pin_hash)
-values ('member-juice', '쥬스', 'admin', null)
+values
+  ('member-owner', 'admin', 'owner', null),
+  ('member-juice', '쥬스', 'admin', null)
 on conflict (id) do nothing;
 
 alter table public.members enable row level security;

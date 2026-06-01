@@ -17,6 +17,13 @@ const RSVP_LABELS = {
 
 const REQUIRED_FINAL_APPROVALS = 2;
 const PIN_PATTERN = /^\d{6}$/;
+const OWNER_MEMBER_ID = "member-owner";
+const SEED_ADMIN_MEMBER_ID = "member-juice";
+const ROLE_LABELS = {
+  owner: "관리자",
+  admin: "운영진",
+  member: "회원",
+};
 
 const state = {
   club: { name: "NOTBAD" },
@@ -122,18 +129,21 @@ async function loadInitialState() {
 }
 
 function shouldBootstrapSupabaseFromLocal(remoteState, localState) {
-  const [remoteMember] = remoteState.members;
   const remoteIsSeedOnly =
     remoteState.events.length === 0 &&
-    remoteState.members.length === 1 &&
-    remoteMember.id === "member-juice" &&
-    !remoteMember.pinHash;
-  const localSeedMember = localState.members.find((member) => member.id === "member-juice");
+    remoteState.signupRequests.length === 0 &&
+    remoteState.members.length > 0 &&
+    remoteState.members.length <= 2 &&
+    remoteState.members.every((member) =>
+      [OWNER_MEMBER_ID, SEED_ADMIN_MEMBER_ID].includes(member.id) && !member.pinHash,
+    );
+  const localOwnerMember = localState.members.find((member) => member.id === OWNER_MEMBER_ID);
+  const localSeedAdminMember = localState.members.find((member) => member.id === SEED_ADMIN_MEMBER_ID);
   const localHasUserData =
     localState.events.length > 0 ||
     localState.members.length > 1 ||
     localState.signupRequests.length > 0 ||
-    Boolean(localSeedMember?.pinHash);
+    Boolean(localOwnerMember?.pinHash || localSeedAdminMember?.pinHash);
 
   return remoteIsSeedOnly && localHasUserData;
 }
@@ -268,6 +278,9 @@ function bindEvents() {
     if (action === "reject-signup") {
       rejectSignupRequest(target.dataset.requestId);
     }
+    if (action === "set-member-role") {
+      setMemberRole(target.dataset.memberId, target.dataset.role);
+    }
   });
 
   document.body.addEventListener("change", (event) => {
@@ -295,7 +308,14 @@ function loadState() {
     },
     members: [
       {
-        id: "member-juice",
+        id: OWNER_MEMBER_ID,
+        name: "admin",
+        role: "owner",
+        pinHash: null,
+        createdAt: now,
+      },
+      {
+        id: SEED_ADMIN_MEMBER_ID,
         name: "쥬스",
         role: "admin",
         pinHash: null,
@@ -314,7 +334,7 @@ function migrateState(nextState) {
   nextState.members = (nextState.members || []).map((member) => ({
     id: member.id || createId("member"),
     name: member.name || "이름 없음",
-    role: member.role === "admin" ? "admin" : "member",
+    role: normalizeRole(member.role),
     pinHash: member.pinHash || null,
     createdAt: member.createdAt || now,
   }));
@@ -339,17 +359,70 @@ function migrateState(nextState) {
     requestedAt: request.requestedAt || now,
   }));
   if (!nextState.members.length) {
-    nextState.members.push({
-      id: "member-juice",
-      name: "쥬스",
-      role: "admin",
-      pinHash: null,
-      createdAt: now,
-    });
-  } else if (!nextState.members.some((member) => member.role === "admin")) {
-    nextState.members[0].role = "admin";
+    nextState.members.push(createOwnerMember(now), createSeedAdminMember(now));
+  } else {
+    ensureOwnerMember(nextState, now);
+    ensureSeedAdminMember(nextState, now);
   }
+
+  if (!nextState.members.some((member) => member.role === "admin")) {
+    const seedAdmin = nextState.members.find((member) => member.id === SEED_ADMIN_MEMBER_ID);
+    if (seedAdmin) seedAdmin.role = "admin";
+    else {
+      const firstNonOwner = nextState.members.find((member) => member.role !== "owner");
+      if (firstNonOwner) firstNonOwner.role = "admin";
+    }
+  }
+
   return nextState;
+}
+
+function createOwnerMember(createdAt) {
+  return {
+    id: OWNER_MEMBER_ID,
+    name: "admin",
+    role: "owner",
+    pinHash: null,
+    createdAt,
+  };
+}
+
+function createSeedAdminMember(createdAt) {
+  return {
+    id: SEED_ADMIN_MEMBER_ID,
+    name: "쥬스",
+    role: "admin",
+    pinHash: null,
+    createdAt,
+  };
+}
+
+function ensureOwnerMember(nextState, createdAt) {
+  if (nextState.members.some((member) => member.role === "owner")) return;
+
+  const existingAdminNamedMember = nextState.members.find((member) => normalizeName(member.name) === "admin");
+  if (existingAdminNamedMember) {
+    existingAdminNamedMember.role = "owner";
+    return;
+  }
+
+  nextState.members.unshift(createOwnerMember(createdAt));
+}
+
+function ensureSeedAdminMember(nextState, createdAt) {
+  if (nextState.members.some((member) => member.id === SEED_ADMIN_MEMBER_ID)) return;
+  if (nextState.members.some((member) => normalizeName(member.name) === "쥬스")) return;
+
+  nextState.members.push(createSeedAdminMember(createdAt));
+}
+
+function normalizeRole(role) {
+  if (role === "owner" || role === "admin") return role;
+  return "member";
+}
+
+function getRoleLabel(role) {
+  return ROLE_LABELS[role] || ROLE_LABELS.member;
 }
 
 function loadSessionMemberId() {
@@ -404,7 +477,7 @@ function renderAuth() {
 function renderAccount() {
   const member = getActiveMember();
   els.currentMemberName.textContent = member.name;
-  els.currentMemberRole.textContent = member.role === "admin" ? "운영진" : "회원";
+  els.currentMemberRole.textContent = getRoleLabel(member.role);
 }
 
 function renderTabs() {
@@ -651,7 +724,7 @@ function renderReportTable(month, monthEvents) {
         .join("");
       return `
         <tr>
-          <td>${escapeHtml(member.name)}${member.role === "admin" ? " · 운영진" : ""}</td>
+          <td>${escapeHtml(member.name)}${member.role !== "member" ? ` · ${getRoleLabel(member.role)}` : ""}</td>
           ${cells}
           <td class="count-cell">${total}</td>
         </tr>
@@ -722,25 +795,27 @@ function renderSignupRequests() {
 }
 
 function renderMemberRoster() {
-  const adminCount = state.members.filter((member) => member.role === "admin").length;
   const rows = state.members
     .map((member) => {
-      const isLastAdmin = member.role === "admin" && adminCount <= 1;
-      const canDelete = member.id !== activeMemberId && !isLastAdmin;
+      const roleAction = renderMemberRoleAction(member);
+      const canDelete = canDeleteMember(member);
       return `
         <tr>
           <td>${escapeHtml(member.name)}</td>
-          <td>${member.role === "admin" ? "운영진" : "회원"}</td>
+          <td>${getRoleLabel(member.role)}</td>
           <td>${countMemberEvents(member.id)}</td>
           <td>
-            ${
-              canDelete
-                ? `<button class="danger-btn" type="button" data-action="delete-member" data-member-id="${escapeHtml(member.id)}">
-                    <span aria-hidden="true">×</span>
-                    <span>제거</span>
-                  </button>`
-                : ""
-            }
+            <div class="table-actions">
+              ${roleAction}
+              ${
+                canDelete
+                  ? `<button class="danger-btn" type="button" data-action="delete-member" data-member-id="${escapeHtml(member.id)}">
+                      <span aria-hidden="true">×</span>
+                      <span>제거</span>
+                    </button>`
+                  : ""
+              }
+            </div>
           </td>
         </tr>
       `;
@@ -771,6 +846,26 @@ function renderMemberRoster() {
         <tbody>${rows}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderMemberRoleAction(member) {
+  if (!isActiveMemberOwner() || member.role === "owner") return "";
+
+  if (member.role === "admin") {
+    return `
+      <button class="plain-btn" type="button" data-action="set-member-role" data-member-id="${escapeHtml(member.id)}" data-role="member">
+        <span aria-hidden="true">−</span>
+        <span>운영진 해제</span>
+      </button>
+    `;
+  }
+
+  return `
+    <button class="primary-btn" type="button" data-action="set-member-role" data-member-id="${escapeHtml(member.id)}" data-role="admin">
+      <span aria-hidden="true">✓</span>
+      <span>운영진 지정</span>
+    </button>
   `;
 }
 
@@ -949,7 +1044,7 @@ function openMemberDialog() {
   els.memberName.value = "";
   els.memberPin.value = "";
   els.memberIsAdmin.checked = false;
-  els.adminRoleLabel.hidden = false;
+  els.adminRoleLabel.hidden = !isActiveMemberOwner();
   els.memberDialog.showModal();
   els.memberName.focus();
 }
@@ -980,7 +1075,7 @@ async function addMember() {
   const member = {
     id: createId("member"),
     name,
-    role: els.memberIsAdmin.checked ? "admin" : "member",
+    role: isActiveMemberOwner() && els.memberIsAdmin.checked ? "admin" : "member",
     pinHash: await hashPin(name, pin),
     createdAt: new Date().toISOString(),
   };
@@ -1035,6 +1130,27 @@ function rejectSignupRequest(requestId) {
   state.signupRequests = state.signupRequests.filter((candidate) => candidate.id !== requestId);
   saveState();
   showToast("가입 요청을 거절했습니다.");
+  render();
+}
+
+function setMemberRole(memberId, role) {
+  if (!isActiveMemberOwner()) {
+    showToast("관리자만 운영진을 지정할 수 있습니다.");
+    return;
+  }
+
+  const member = state.members.find((candidate) => candidate.id === memberId);
+  if (!member || member.role === "owner") return;
+  if (role !== "admin" && role !== "member") return;
+
+  if (member.role === "admin" && role === "member" && getOperationalMembers().length <= 2) {
+    showToast("출석 확정을 위해 관리자 포함 2명 이상의 운영 권한이 필요합니다.");
+    return;
+  }
+
+  member.role = role;
+  saveState();
+  showToast(`${member.name} 권한을 ${getRoleLabel(role)}으로 변경했습니다.`);
   render();
 }
 
@@ -1280,9 +1396,8 @@ function deleteMember(memberId) {
   const member = state.members.find((candidate) => candidate.id === memberId);
   if (!member || member.id === activeMemberId) return;
 
-  const adminCount = state.members.filter((candidate) => candidate.role === "admin").length;
-  if (member.role === "admin" && adminCount <= 1) {
-    showToast("마지막 운영진은 제거할 수 없습니다.");
+  if (!canDeleteMember(member)) {
+    showToast("관리자 또는 마지막 운영진은 제거할 수 없습니다.");
     return;
   }
 
@@ -1364,7 +1479,7 @@ function exportMonthlyCsv() {
 
     return [
       member.name,
-      member.role === "admin" ? "운영진" : "회원",
+      getRoleLabel(member.role),
       ...dayCounts,
       total,
     ];
@@ -1419,11 +1534,30 @@ function getActiveMember() {
 }
 
 function isActiveMemberAdmin() {
-  return getActiveMember()?.role === "admin";
+  return isOperationalRole(getActiveMember()?.role);
+}
+
+function isActiveMemberOwner() {
+  return getActiveMember()?.role === "owner";
 }
 
 function getAdminMembers() {
-  return state.members.filter((member) => member.role === "admin");
+  return getOperationalMembers();
+}
+
+function getOperationalMembers() {
+  return state.members.filter((member) => isOperationalRole(member.role));
+}
+
+function isOperationalRole(role) {
+  return role === "admin" || role === "owner";
+}
+
+function canDeleteMember(member) {
+  if (!member || member.id === activeMemberId || member.role === "owner") return false;
+  if (member.role === "admin" && !isActiveMemberOwner()) return false;
+  if (member.role === "admin" && getOperationalMembers().length <= 2) return false;
+  return true;
 }
 
 function canDeleteEvent(event) {
@@ -1484,7 +1618,7 @@ function getFinalApprovalIds(event) {
   const approvalIds = normalizeIdList(event.finalApprovalIds || (event.finalizedBy ? [event.finalizedBy] : []));
   return approvalIds.filter((memberId) => {
     const member = state.members.find((candidate) => candidate.id === memberId);
-    return member?.role === "admin";
+    return isOperationalRole(member?.role);
   });
 }
 
