@@ -876,6 +876,116 @@ textarea:focus {
   border-bottom: 0;
 }
 
+.mobile-report-list,
+.mobile-roster-list {
+  display: none;
+}
+
+.mobile-report-row,
+.mobile-roster-row {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.mobile-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-member-name {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.mobile-member-name strong {
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.role-dot {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.count-badge {
+  display: inline-grid;
+  min-width: 34px;
+  height: 34px;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #fff;
+  background: var(--green);
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.attendance-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.attendance-chip {
+  display: inline-grid;
+  gap: 1px;
+  min-width: 74px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.attendance-chip small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-muted {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.mobile-count {
+  display: grid;
+  min-width: 70px;
+  justify-items: end;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.mobile-count strong {
+  color: var(--ink);
+  font-size: 1.15rem;
+}
+
+.mobile-row-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mobile-row-actions > button {
+  width: 100%;
+  min-width: 0;
+}
+
 .count-cell {
   color: var(--green-dark);
   font-weight: 900;
@@ -1206,6 +1316,43 @@ textarea:focus {
   .month-tools input,
   .month-tools button {
     flex: 1 1 0;
+  }
+
+  .roster-head {
+    align-items: center;
+    padding: 14px 14px 0;
+  }
+
+  .roster-actions {
+    flex-wrap: nowrap;
+  }
+
+  .roster-actions .tool-btn {
+    min-width: 118px;
+    padding: 0 12px;
+  }
+
+  .desktop-report-table {
+    display: none;
+  }
+
+  .report-wrap {
+    overflow: hidden;
+  }
+
+  .mobile-report-list,
+  .mobile-roster-list {
+    display: grid;
+    margin-top: 12px;
+  }
+
+  .mobile-report-row:first-child,
+  .mobile-roster-row:first-child {
+    border-top: 1px solid var(--line);
+  }
+
+  .attendance-report .empty-state {
+    border-top: 1px solid var(--line);
   }
 
   .toast {

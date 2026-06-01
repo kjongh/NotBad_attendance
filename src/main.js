@@ -1023,12 +1023,12 @@ function renderReportTable(month, monthEvents) {
     .join("");
 
   return `
-    <div class="report-wrap">
+    <div class="report-wrap attendance-report">
       <div class="roster-head">
         <h3>월별 참석 현황</h3>
         <span class="pill">확정 일정 ${finalizedEvents.length}개</span>
       </div>
-      <table class="report-table">
+      <table class="report-table desktop-report-table">
         <thead>
           <tr>
             <th>회원</th>
@@ -1038,8 +1038,51 @@ function renderReportTable(month, monthEvents) {
         </thead>
         <tbody>${rows}</tbody>
       </table>
+      ${renderMobileAttendanceReport(month, finalizedEvents)}
     </div>
   `;
+}
+
+function renderMobileAttendanceReport(month, finalizedEvents) {
+  if (!finalizedEvents.length) {
+    return `
+      <div class="mobile-report-list">
+        <div class="empty-state compact">아직 ${escapeHtml(month)}에 확정된 출석이 없습니다.</div>
+      </div>
+    `;
+  }
+
+  const rows = state.members
+    .map((member) => {
+      const attendedEvents = finalizedEvents.filter((event) => event.confirmedAttendance?.[member.id]);
+      const roleLabel = member.role !== "member" ? `<span class="role-dot">${getRoleLabel(member.role)}</span>` : "";
+      const eventChips = attendedEvents.length
+        ? attendedEvents
+            .map((event) => `
+              <span class="attendance-chip">
+                ${escapeHtml(formatDayColumn(getDayKey(new Date(event.startAt))))}
+                <small>${escapeHtml(event.title)}</small>
+              </span>
+            `)
+            .join("")
+        : `<span class="mobile-muted">출석 기록 없음</span>`;
+
+      return `
+        <div class="mobile-report-row">
+          <div class="mobile-row-top">
+            <div class="mobile-member-name">
+              <strong>${escapeHtml(member.name)}</strong>
+              ${roleLabel}
+            </div>
+            <span class="count-badge">${attendedEvents.length}</span>
+          </div>
+          <div class="attendance-chip-row">${eventChips}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `<div class="mobile-report-list">${rows}</div>`;
 }
 
 function renderSignupRequests() {
@@ -1128,6 +1171,7 @@ function renderMemberRoster() {
     .map((member) => {
       const roleAction = renderMemberRoleAction(member);
       const canDelete = canDeleteMember(member);
+      const deleteButton = canDelete ? renderDeleteMemberButton(member) : "";
       return `
         <tr>
           <td>${escapeHtml(member.name)}</td>
@@ -1136,17 +1180,33 @@ function renderMemberRoster() {
           <td>
             <div class="table-actions">
               ${roleAction}
-              ${
-                canDelete
-                  ? `<button class="danger-btn" type="button" data-action="delete-member" data-member-id="${escapeHtml(member.id)}">
-                      <span aria-hidden="true">×</span>
-                      <span>제거</span>
-                    </button>`
-                  : ""
-              }
+              ${deleteButton}
             </div>
           </td>
         </tr>
+      `;
+    })
+    .join("");
+
+  const mobileRows = state.members
+    .map((member) => {
+      const roleAction = renderMemberRoleAction(member);
+      const deleteButton = canDeleteMember(member) ? renderDeleteMemberButton(member) : "";
+      const actions = [roleAction, deleteButton].filter(Boolean).join("");
+      return `
+        <div class="mobile-roster-row">
+          <div class="mobile-row-top">
+            <div class="mobile-member-name">
+              <strong>${escapeHtml(member.name)}</strong>
+              <span class="role-dot">${getRoleLabel(member.role)}</span>
+            </div>
+            <div class="mobile-count">
+              <span>관련 일정</span>
+              <strong>${countMemberEvents(member.id)}</strong>
+            </div>
+          </div>
+          ${actions ? `<div class="mobile-row-actions">${actions}</div>` : ""}
+        </div>
       `;
     })
     .join("");
@@ -1163,7 +1223,7 @@ function renderMemberRoster() {
           </button>
         </div>
       </div>
-      <table class="report-table">
+      <table class="report-table desktop-report-table">
         <thead>
           <tr>
             <th>회원</th>
@@ -1174,7 +1234,17 @@ function renderMemberRoster() {
         </thead>
         <tbody>${rows}</tbody>
       </table>
+      <div class="mobile-roster-list">${mobileRows}</div>
     </div>
+  `;
+}
+
+function renderDeleteMemberButton(member) {
+  return `
+    <button class="danger-btn" type="button" data-action="delete-member" data-member-id="${escapeHtml(member.id)}">
+      <span aria-hidden="true">×</span>
+      <span>제거</span>
+    </button>
   `;
 }
 
