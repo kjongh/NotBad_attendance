@@ -1632,6 +1632,8 @@ function setRsvp(eventId, status) {
   event.rsvps[activeMemberId] = status;
   if (!event.attendanceDraft || Object.keys(event.attendanceDraft).length === 0) {
     event.attendanceDraft = {};
+  } else {
+    event.attendanceDraft[activeMemberId] = status === "attending";
   }
   const approvalsCleared = clearFinalApprovals(event);
   saveState();
@@ -1802,7 +1804,7 @@ async function copyMyMonthSummary() {
   if (!requireLogin()) return;
 
   const member = getActiveMember();
-  const month = getMonthKey(new Date());
+  const month = els.dashboardMonth.value || getMonthKey(new Date());
   const count = countConfirmedAttendance(member.id, month);
   const text = `[NOTBAD] ${member.name} ${month} 확정 출석: ${count}회`;
   await copyText(text);
