@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
@@ -10,5 +13,8 @@
   },
   "devDependencies": {
     "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2"
   }
 }

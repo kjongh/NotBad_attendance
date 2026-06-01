@@ -38,6 +38,20 @@ npm run dev
 npm run build
 ```
 
+## Supabase 준비
+
+Supabase 프로젝트를 만든 뒤 SQL Editor에서 `supabase/schema.sql`을 실행합니다.
+Vercel에는 아래 환경변수를 등록합니다.
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+로컬 개발에서는 `.env.example`을 참고해 `.env.local`을 만들면 됩니다. 환경변수가 없으면 기존처럼 브라우저 `localStorage`로 동작하고, 환경변수가 있으면 Supabase에서 먼저 데이터를 불러온 뒤 저장 내용을 DB에 반영합니다.
+
+새 Supabase DB가 기본 운영진 `쥬스`만 가진 상태이고 현재 브라우저에 기존 일정/회원 데이터가 있으면, 첫 실행 때 그 로컬 데이터를 Supabase로 올립니다.
+
+현재 SQL 정책은 MVP 연결 확인용으로 넓게 열려 있습니다. 실제 운영 보안은 Supabase Auth와 RLS 정책으로 좁혀야 합니다. 지금 구조는 여러 사용자가 동시에 수정할 때 마지막 저장이 이기는 단순 동기화 방식입니다.
+
 ## 초기값
 
 - 클럽 이름: `NOTBAD`
@@ -47,14 +61,14 @@ npm run build
 
 ## 다음 단계
 
-현재 데이터와 로그인 세션은 브라우저 `localStorage`에 저장됩니다. 이 MVP에서는 화면과 동작을 계정별로 제한하지만, 실제 보안은 서버와 DB 정책이 필요합니다. 여러 사람이 함께 쓰려면 같은 화면을 유지한 채로 데이터 저장소와 권한 검사를 Supabase로 바꾸는 흐름이 좋습니다.
+로그인 세션은 브라우저 `localStorage`에 저장됩니다. 데이터는 Supabase 환경변수가 있으면 DB에 저장되고, 없으면 브라우저 `localStorage`에만 저장됩니다. 이 MVP에서는 화면과 동작을 계정별로 제한하지만, 실제 보안은 Supabase Auth와 RLS 정책이 필요합니다.
 
 자동 취소도 현재는 앱이 열려 있거나 다시 열릴 때 브라우저에서 평가합니다. 실제 배포판에서는 서버 작업 또는 Supabase Edge Function/cron으로 같은 규칙을 실행하는 편이 안전합니다.
 
 권장 전환 순서:
 
 1. Supabase 프로젝트 생성
-2. `members`, `events`, `rsvps`, `attendance_confirmations`, `attendance_final_approvals` 테이블 생성
-3. 초대 링크 또는 카카오 로그인 연결
-4. Vercel 배포
-5. 운영진 권한을 서버 정책으로 강제
+2. `supabase/schema.sql` 실행
+3. Vercel에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 등록
+4. Supabase Auth 또는 초대 링크/카카오 로그인 연결
+5. 운영진 권한을 RLS 정책으로 강제

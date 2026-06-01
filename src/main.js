@@ -1,4 +1,9 @@
 import "./styles.css";
+import {
+  isSupabaseStoreConfigured,
+  loadStateFromSupabase,
+  queuePersistStateToSupabase,
+} from "./supabaseStore";
 
 const STORAGE_KEY = "notbad.attendance.v1";
 const SESSION_KEY = "notbad.session.v1";
@@ -12,8 +17,12 @@ const RSVP_LABELS = {
 
 const REQUIRED_FINAL_APPROVALS = 2;
 
-const state = loadState();
-let activeMemberId = loadSessionMemberId();
+const state = {
+  club: { name: "NOTBAD" },
+  members: [],
+  events: [],
+};
+let activeMemberId = null;
 let activeView = "dashboard";
 let authMode = "login";
 let toastTimer = null;
@@ -82,13 +91,53 @@ const els = {
 
 init();
 
-function init() {
-  saveState();
+async function init() {
+  const nextState = await loadInitialState();
+  replaceState(nextState);
+  activeMemberId = loadSessionMemberId();
+  saveState({ persistRemote: false });
   setDefaultFormValues();
   setDefaultDashboardFilters();
   bindEvents();
   applyHashEventFocus();
   render();
+}
+
+async function loadInitialState() {
+  const localState = loadState();
+  const remoteState = await loadStateFromSupabase();
+  if (!remoteState?.members?.length) return localState;
+
+  if (shouldBootstrapSupabaseFromLocal(remoteState, localState)) {
+    queuePersistStateToSupabase(localState);
+    return localState;
+  }
+
+  const migratedRemoteState = migrateState(remoteState);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedRemoteState));
+  return migratedRemoteState;
+}
+
+function shouldBootstrapSupabaseFromLocal(remoteState, localState) {
+  const [remoteMember] = remoteState.members;
+  const remoteIsSeedOnly =
+    remoteState.events.length === 0 &&
+    remoteState.members.length === 1 &&
+    remoteMember.id === "member-juice" &&
+    !remoteMember.pinHash;
+  const localSeedMember = localState.members.find((member) => member.id === "member-juice");
+  const localHasUserData =
+    localState.events.length > 0 ||
+    localState.members.length > 1 ||
+    Boolean(localSeedMember?.pinHash);
+
+  return remoteIsSeedOnly && localHasUserData;
+}
+
+function replaceState(nextState) {
+  state.club = nextState.club;
+  state.members = nextState.members;
+  state.events = nextState.events;
 }
 
 function bindEvents() {
@@ -271,7 +320,15 @@ function migrateState(nextState) {
     finalizedAt: event.finalizedAt || null,
     finalizedBy: event.finalizedBy || null,
   }));
-  if (!nextState.members.some((member) => member.role === "admin")) {
+  if (!nextState.members.length) {
+    nextState.members.push({
+      id: "member-juice",
+      name: "쥬스",
+      role: "admin",
+      pinHash: null,
+      createdAt: now,
+    });
+  } else if (!nextState.members.some((member) => member.role === "admin")) {
     nextState.members[0].role = "admin";
   }
   return nextState;
@@ -284,8 +341,12 @@ function loadSessionMemberId() {
   return null;
 }
 
-function saveState() {
+function saveState(options = {}) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (options.persistRemote === false) return;
+  if (isSupabaseStoreConfigured) {
+    queuePersistStateToSupabase(state);
+  }
 }
 
 function setSession(memberId) {
