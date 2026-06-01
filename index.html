@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NOTBAD 출석</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section id="authScreen" class="auth-screen">
+      <div class="auth-card">
+        <div class="brand auth-brand">
+          <div class="brand-mark" aria-hidden="true">NB</div>
+          <div>
+            <p class="eyebrow">SPORTS CLUB</p>
+            <h1>NOTBAD 출석</h1>
+          </div>
+        </div>
+
+        <div class="auth-tabs" aria-label="로그인 화면 전환">
+          <button class="auth-tab is-active" type="button" data-auth-mode="login">로그인</button>
+          <button class="auth-tab" type="button" data-auth-mode="signup">회원 가입</button>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <label>
+            <span>이름</span>
+            <input id="loginName" type="text" autocomplete="username" value="쥬스" required />
+          </label>
+          <label>
+            <span>PIN</span>
+            <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password" minlength="4" required />
+          </label>
+          <button class="primary-btn" type="submit">
+            <span aria-hidden="true">→</span>
+            <span>입장</span>
+          </button>
+          <p class="auth-help">쥬스 계정은 첫 로그인 때 입력한 PIN으로 초기 설정됩니다.</p>
+        </form>
+
+        <form id="signupForm" class="auth-form" hidden>
+          <label>
+            <span>이름</span>
+            <input id="signupName" type="text" autocomplete="name" required />
+          </label>
+          <label>
+            <span>PIN</span>
+            <input id="signupPin" type="password" inputmode="numeric" autocomplete="new-password" minlength="4" required />
+          </label>
+          <button class="primary-btn" type="submit">
+            <span aria-hidden="true">+</span>
+            <span>회원 가입</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <div id="appShell" class="app-shell" hidden>
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">NB</div>
+          <div>
+            <p class="eyebrow">SPORTS CLUB</p>
+            <h1>NOTBAD 출석</h1>
+          </div>
+        </div>
+
+        <div class="identity">
+          <span>로그인 계정</span>
+          <div class="account-card">
+            <div>
+              <strong id="currentMemberName">-</strong>
+              <small id="currentMemberRole">회원</small>
+            </div>
+            <button id="logoutBtn" class="tool-btn" type="button" title="로그아웃">
+              <span aria-hidden="true">↩</span>
+              <span>로그아웃</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="summary-band" aria-label="월간 요약">
+          <div class="metric">
+            <span id="myMonthCount" class="metric-value">0</span>
+            <span class="metric-label">이번 달 확정 출석</span>
+          </div>
+          <div class="metric">
+            <span id="pendingConfirmCount" class="metric-value">0</span>
+            <span class="metric-label">내 참석 예정</span>
+          </div>
+          <div class="metric next-metric split-metric">
+            <div class="next-row">
+              <span class="metric-label">전체 다음 일정</span>
+              <span id="nextEventDate" class="metric-value compact">-</span>
+            </div>
+            <div class="next-row">
+              <span class="metric-label">내 참석 다음 일정</span>
+              <span id="myNextEventDate" class="metric-value compact">-</span>
+            </div>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="화면 전환">
+          <button class="tab is-active" type="button" data-view="dashboard">대시보드</button>
+          <button class="tab" type="button" data-view="create">일정 만들기</button>
+          <button class="tab admin-only" type="button" data-view="admin">운영진</button>
+        </nav>
+
+        <section id="dashboardView" class="view is-active" aria-labelledby="dashboardTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">CLUB SCHEDULE</p>
+              <h2 id="dashboardTitle">전체 일정</h2>
+            </div>
+            <div class="dashboard-tools">
+              <div class="segmented-control" aria-label="일정 상태 필터">
+                <button class="segment is-active" type="button" data-dashboard-filter="all">전체</button>
+                <button class="segment" type="button" data-dashboard-filter="pending">대기중</button>
+                <button class="segment" type="button" data-dashboard-filter="canceled">취소됨</button>
+                <button class="segment" type="button" data-dashboard-filter="completed">완료됨</button>
+              </div>
+              <label>
+                <span>월</span>
+                <input id="dashboardMonth" type="month" />
+              </label>
+              <label>
+                <span>날짜</span>
+                <input id="dashboardDate" type="date" />
+              </label>
+              <button id="clearDashboardDate" class="tool-btn" type="button" title="날짜 선택 해제">
+                <span aria-hidden="true">×</span>
+                <span>날짜 해제</span>
+              </button>
+              <button id="copyMonthSummary" class="tool-btn" type="button" title="내 월간 요약 복사">
+                <span aria-hidden="true">↗</span>
+                <span>요약 복사</span>
+              </button>
+            </div>
+          </div>
+          <div id="eventList" class="event-list"></div>
+        </section>
+
+        <section id="createView" class="view" aria-labelledby="createTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">NEW SESSION</p>
+              <h2 id="createTitle">일정 만들기</h2>
+            </div>
+          </div>
+
+          <form id="eventForm" class="event-form">
+            <div class="form-grid">
+              <label>
+                <span>제목</span>
+                <input id="eventTitle" name="title" type="text" placeholder="예: 평일 저녁 운동" required />
+              </label>
+
+              <label>
+                <span>장소</span>
+                <input id="eventLocation" name="location" type="text" placeholder="예: 잠실 코트" required />
+              </label>
+
+              <label>
+                <span>날짜</span>
+                <input id="eventDate" name="date" type="date" required />
+              </label>
+
+              <div class="time-pair">
+                <label>
+                  <span>시작</span>
+                  <input id="eventStartTime" name="startTime" type="time" required />
+                </label>
+                <label>
+                  <span>종료</span>
+                  <input id="eventEndTime" name="endTime" type="time" required />
+                </label>
+              </div>
+
+              <label>
+                <span>정원</span>
+                <input id="eventCapacity" name="capacity" type="number" min="1" max="99" placeholder="선택" />
+              </label>
+
+              <label>
+                <span>최소 인원</span>
+                <input id="eventMinAttendees" name="minAttendees" type="number" min="1" max="99" placeholder="선택" />
+              </label>
+
+              <label>
+                <span>자동 취소 시각</span>
+                <input id="eventCancelAt" name="cancelAt" type="datetime-local" />
+              </label>
+
+              <label class="wide-field">
+                <span>메모</span>
+                <textarea id="eventNote" name="note" rows="4" placeholder="준비물, 회비, 코트 번호"></textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">
+                <span aria-hidden="true">+</span>
+                <span>일정 등록</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section id="adminView" class="view" aria-labelledby="adminTitle">
+          <div class="section-head admin-head">
+            <div>
+              <p class="eyebrow">ADMIN</p>
+              <h2 id="adminTitle">출석 확정</h2>
+            </div>
+            <div class="month-tools">
+              <input id="reportMonth" type="month" aria-label="조회 월" />
+              <button id="exportCsv" class="tool-btn" type="button" title="CSV 다운로드">
+                <span aria-hidden="true">↓</span>
+                <span>CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="roster-head">
+              <h3>출석 확정 승인</h3>
+              <div class="segmented-control" aria-label="출석 확정 상태 필터">
+                <button class="segment is-active" type="button" data-confirm-filter="needs">확정 필요</button>
+                <button class="segment" type="button" data-confirm-filter="upcoming">진행 예정</button>
+                <button class="segment" type="button" data-confirm-filter="finalized">확정 완료</button>
+              </div>
+            </div>
+            <div id="confirmQueue" class="confirm-queue"></div>
+          </div>
+
+          <div id="adminReport" class="admin-report"></div>
+          <div id="memberRoster" class="member-roster"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="memberDialog" class="member-dialog">
+      <form id="memberForm" method="dialog">
+        <div class="dialog-head">
+          <h2>회원 추가</h2>
+          <button id="closeMemberDialog" class="icon-btn" type="button" title="닫기" aria-label="닫기">×</button>
+        </div>
+
+        <label>
+          <span>이름</span>
+          <input id="memberName" type="text" required autocomplete="name" />
+        </label>
+
+        <label>
+          <span>초기 PIN</span>
+          <input id="memberPin" type="password" inputmode="numeric" minlength="4" required autocomplete="new-password" />
+        </label>
+
+        <label id="adminRoleLabel" class="check-row">
+          <input id="memberIsAdmin" type="checkbox" />
+          <span>운영진으로 등록</span>
+        </label>
+
+        <div class="dialog-actions">
+          <button class="primary-btn" type="submit">
+            <span aria-hidden="true">+</span>
+            <span>추가</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="editEventDialog" class="member-dialog">
+      <form id="editEventForm" method="dialog">
+        <div class="dialog-head">
+          <h2>일정 수정</h2>
+          <button id="closeEditEventDialog" class="icon-btn" type="button" title="닫기" aria-label="닫기">×</button>
+        </div>
+
+        <input id="editEventId" type="hidden" />
+
+        <label>
+          <span>제목</span>
+          <input id="editEventTitle" type="text" required />
+        </label>
+
+        <label>
+          <span>장소</span>
+          <input id="editEventLocation" type="text" required />
+        </label>
+
+        <label>
+          <span>날짜</span>
+          <input id="editEventDate" type="date" required />
+        </label>
+
+        <div class="time-pair">
+          <label>
+            <span>시작</span>
+            <input id="editEventStartTime" type="time" required />
+          </label>
+          <label>
+            <span>종료</span>
+            <input id="editEventEndTime" type="time" required />
+          </label>
+        </div>
+
+        <label>
+          <span>정원</span>
+          <input id="editEventCapacity" type="number" min="1" max="99" placeholder="선택" />
+        </label>
+
+        <label>
+          <span>최소 인원</span>
+          <input id="editEventMinAttendees" type="number" min="1" max="99" placeholder="선택" />
+        </label>
+
+        <label>
+          <span>자동 취소 시각</span>
+          <input id="editEventCancelAt" type="datetime-local" />
+        </label>
+
+        <label>
+          <span>메모</span>
+          <textarea id="editEventNote" rows="4"></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button class="primary-btn" type="submit">
+            <span aria-hidden="true">✓</span>
+            <span>저장</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
