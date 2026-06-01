@@ -17,3 +17,5 @@ drop policy if exists "MVP read confirmed attendance" on public.confirmed_attend
 drop policy if exists "MVP write confirmed attendance" on public.confirmed_attendance;
 drop policy if exists "MVP read final approvals" on public.final_approvals;
 drop policy if exists "MVP write final approvals" on public.final_approvals;
+drop policy if exists "MVP read feedback items" on public.feedback_items;
+drop policy if exists "MVP write feedback items" on public.feedback_items;

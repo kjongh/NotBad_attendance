@@ -73,6 +73,20 @@ create table if not exists public.final_approvals (
   primary key (event_id, admin_member_id)
 );
 
+create table if not exists public.feedback_items (
+  id text primary key,
+  member_id text references public.members(id) on delete set null,
+  member_name text not null,
+  type text not null default 'idea' check (type in ('idea', 'ux', 'bug', 'other')),
+  subject text not null,
+  message text not null,
+  status text not null default 'new' check (status in ('new', 'reviewing', 'done', 'closed')),
+  page_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz,
+  updated_by text references public.members(id) on delete set null
+);
+
 insert into public.members (id, name, role, pin_hash)
 values
   ('member-owner', 'admin', 'owner', null),
@@ -86,6 +100,7 @@ alter table public.rsvps enable row level security;
 alter table public.attendance_drafts enable row level security;
 alter table public.confirmed_attendance enable row level security;
 alter table public.final_approvals enable row level security;
+alter table public.feedback_items enable row level security;
 
 drop policy if exists "MVP read members" on public.members;
 drop policy if exists "MVP write members" on public.members;
@@ -101,6 +116,8 @@ drop policy if exists "MVP read confirmed attendance" on public.confirmed_attend
 drop policy if exists "MVP write confirmed attendance" on public.confirmed_attendance;
 drop policy if exists "MVP read final approvals" on public.final_approvals;
 drop policy if exists "MVP write final approvals" on public.final_approvals;
+drop policy if exists "MVP read feedback items" on public.feedback_items;
+drop policy if exists "MVP write feedback items" on public.feedback_items;
 
 create policy "MVP read members" on public.members
   for select using (true);
@@ -135,4 +152,9 @@ create policy "MVP write confirmed attendance" on public.confirmed_attendance
 create policy "MVP read final approvals" on public.final_approvals
   for select using (true);
 create policy "MVP write final approvals" on public.final_approvals
+  for all using (true) with check (true);
+
+create policy "MVP read feedback items" on public.feedback_items
+  for select using (true);
+create policy "MVP write feedback items" on public.feedback_items
   for all using (true) with check (true);

@@ -16,6 +16,7 @@ export async function loadStateFromSupabase() {
       confirmedResult,
       approvalsResult,
       signupRequestsResult,
+      feedbackResult,
     ] = await Promise.all([
       supabase.from("members").select("*").order("created_at"),
       supabase.from("events").select("*").order("start_at"),
@@ -24,6 +25,7 @@ export async function loadStateFromSupabase() {
       supabase.from("confirmed_attendance").select("*"),
       supabase.from("final_approvals").select("*"),
       supabase.from("signup_requests").select("*").order("requested_at"),
+      supabase.from("feedback_items").select("*").order("created_at", { ascending: false }),
     ]);
 
     const results = [
@@ -34,6 +36,7 @@ export async function loadStateFromSupabase() {
       confirmedResult,
       approvalsResult,
       signupRequestsResult,
+      feedbackResult,
     ];
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
@@ -104,6 +107,19 @@ export async function loadStateFromSupabase() {
         pinHash: row.pin_hash,
         requestedAt: row.requested_at,
       })),
+      feedbackItems: feedbackResult.data.map((row) => ({
+        id: row.id,
+        memberId: row.member_id,
+        memberName: row.member_name,
+        type: row.type,
+        subject: row.subject,
+        message: row.message,
+        status: row.status,
+        pageUrl: row.page_url,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        updatedBy: row.updated_by,
+      })),
     };
   } catch (error) {
     console.error("Supabase load failed; falling back to localStorage.", error);
@@ -129,10 +145,12 @@ async function persistStateToSupabase(state) {
   const memberIds = state.members.map((member) => member.id);
   const eventIds = state.events.map((event) => event.id);
   const signupRequestIds = (state.signupRequests || []).map((request) => request.id);
+  const feedbackIds = (state.feedbackItems || []).map((item) => item.id);
 
   await deleteMissingRows("events", "id", eventIds);
   await deleteMissingRows("members", "id", memberIds);
   await deleteMissingRows("signup_requests", "id", signupRequestIds);
+  await deleteMissingRows("feedback_items", "id", feedbackIds);
 
   await upsertRows(
     "members",
@@ -152,6 +170,23 @@ async function persistStateToSupabase(state) {
       name: request.name,
       pin_hash: request.pinHash,
       requested_at: request.requestedAt,
+    })),
+  );
+
+  await upsertRows(
+    "feedback_items",
+    (state.feedbackItems || []).map((item) => ({
+      id: item.id,
+      member_id: item.memberId,
+      member_name: item.memberName,
+      type: item.type,
+      subject: item.subject,
+      message: item.message,
+      status: item.status,
+      page_url: item.pageUrl,
+      created_at: item.createdAt,
+      updated_at: item.updatedAt,
+      updated_by: item.updatedBy,
     })),
   );
 

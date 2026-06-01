@@ -518,6 +518,12 @@ textarea:focus {
   border-color: rgba(46, 111, 159, 0.24);
 }
 
+.pill.gold {
+  color: #85640f;
+  background: rgba(198, 156, 53, 0.13);
+  border-color: rgba(198, 156, 53, 0.3);
+}
+
 .event-note {
   margin: 8px 0 0;
   color: var(--muted);
@@ -583,6 +589,36 @@ textarea:focus {
 
 .event-form {
   padding: 18px;
+}
+
+.feedback-panel {
+  margin-top: 16px;
+}
+
+.feedback-list {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.feedback-card {
+  padding: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.feedback-message {
+  margin: 0 0 10px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .form-grid {

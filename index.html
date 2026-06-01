@@ -109,6 +109,7 @@
         <nav class="tabs" aria-label="화면 전환">
           <button class="tab is-active" type="button" data-view="dashboard">대시보드</button>
           <button class="tab" type="button" data-view="create">일정 만들기</button>
+          <button class="tab" type="button" data-view="feedback">건의사항</button>
           <button class="tab admin-only" type="button" data-view="admin">운영진</button>
         </nav>
 
@@ -212,6 +213,53 @@
           </form>
         </section>
 
+        <section id="feedbackView" class="view" aria-labelledby="feedbackTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">FEEDBACK</p>
+              <h2 id="feedbackTitle">건의사항</h2>
+            </div>
+          </div>
+
+          <form id="feedbackForm" class="event-form">
+            <div class="form-grid">
+              <label>
+                <span>분류</span>
+                <select id="feedbackType" required>
+                  <option value="idea">개선 제안</option>
+                  <option value="ux">UI/UX 불편</option>
+                  <option value="bug">버그</option>
+                  <option value="other">기타</option>
+                </select>
+              </label>
+
+              <label>
+                <span>제목</span>
+                <input id="feedbackSubject" type="text" maxlength="80" placeholder="예: 월별 현황에서 이름 검색" required />
+              </label>
+
+              <label class="wide-field">
+                <span>내용</span>
+                <textarea id="feedbackMessage" rows="5" maxlength="1200" placeholder="불편한 점이나 원하는 개선 내용을 적어주세요." required></textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">
+                <span aria-hidden="true">↗</span>
+                <span>보내기</span>
+              </button>
+            </div>
+          </form>
+
+          <div class="admin-panel feedback-panel">
+            <div class="roster-head">
+              <h3>내가 보낸 건의</h3>
+            </div>
+            <div id="feedbackList" class="feedback-list"></div>
+          </div>
+        </section>
+
         <section id="adminView" class="view" aria-labelledby="adminTitle">
           <div class="section-head admin-head">
             <div>
@@ -232,6 +280,13 @@
               <h3>가입 승인</h3>
             </div>
             <div id="signupRequests" class="signup-requests"></div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="roster-head">
+              <h3>건의사항</h3>
+            </div>
+            <div id="adminFeedbackList" class="feedback-list"></div>
           </div>
 
           <div class="admin-panel">

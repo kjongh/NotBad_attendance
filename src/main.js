@@ -24,12 +24,25 @@ const ROLE_LABELS = {
   admin: "운영진",
   member: "회원",
 };
+const FEEDBACK_TYPE_LABELS = {
+  idea: "개선 제안",
+  ux: "UI/UX",
+  bug: "버그",
+  other: "기타",
+};
+const FEEDBACK_STATUS_LABELS = {
+  new: "새 건의",
+  reviewing: "검토중",
+  done: "반영됨",
+  closed: "닫힘",
+};
 
 const state = {
   club: { name: "NOTBAD" },
   members: [],
   events: [],
   signupRequests: [],
+  feedbackItems: [],
 };
 let activeMemberId = null;
 let activeView = "dashboard";
@@ -89,6 +102,12 @@ const els = {
   eventMinAttendees: document.querySelector("#eventMinAttendees"),
   eventCancelAt: document.querySelector("#eventCancelAt"),
   eventNote: document.querySelector("#eventNote"),
+  feedbackForm: document.querySelector("#feedbackForm"),
+  feedbackType: document.querySelector("#feedbackType"),
+  feedbackSubject: document.querySelector("#feedbackSubject"),
+  feedbackMessage: document.querySelector("#feedbackMessage"),
+  feedbackList: document.querySelector("#feedbackList"),
+  adminFeedbackList: document.querySelector("#adminFeedbackList"),
   reportMonth: document.querySelector("#reportMonth"),
   adminReport: document.querySelector("#adminReport"),
   memberRoster: document.querySelector("#memberRoster"),
@@ -143,6 +162,7 @@ function shouldBootstrapSupabaseFromLocal(remoteState, localState) {
     localState.events.length > 0 ||
     localState.members.length > 1 ||
     localState.signupRequests.length > 0 ||
+    localState.feedbackItems.length > 0 ||
     Boolean(localOwnerMember?.pinHash || localSeedAdminMember?.pinHash);
 
   return remoteIsSeedOnly && localHasUserData;
@@ -153,6 +173,7 @@ function replaceState(nextState) {
   state.members = nextState.members;
   state.events = nextState.events;
   state.signupRequests = nextState.signupRequests;
+  state.feedbackItems = nextState.feedbackItems;
 }
 
 function bindEvents() {
@@ -225,6 +246,11 @@ function bindEvents() {
     createEvent();
   });
 
+  els.feedbackForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitFeedback();
+  });
+
   els.reportMonth.addEventListener("change", renderAdmin);
   els.exportCsv.addEventListener("click", exportMonthlyCsv);
   els.copyMonthSummary.addEventListener("click", copyMyMonthSummary);
@@ -281,6 +307,9 @@ function bindEvents() {
     if (action === "set-member-role") {
       setMemberRole(target.dataset.memberId, target.dataset.role);
     }
+    if (action === "set-feedback-status") {
+      setFeedbackStatus(target.dataset.feedbackId, target.dataset.status);
+    }
   });
 
   document.body.addEventListener("change", (event) => {
@@ -324,6 +353,7 @@ function loadState() {
     ],
     events: [],
     signupRequests: [],
+    feedbackItems: [],
   };
 }
 
@@ -357,6 +387,19 @@ function migrateState(nextState) {
     name: request.name || "이름 없음",
     pinHash: request.pinHash || null,
     requestedAt: request.requestedAt || now,
+  }));
+  nextState.feedbackItems = (nextState.feedbackItems || []).map((item) => ({
+    id: item.id || createId("feedback"),
+    memberId: item.memberId || null,
+    memberName: item.memberName || "알 수 없음",
+    type: normalizeFeedbackType(item.type),
+    subject: item.subject || "제목 없음",
+    message: item.message || "",
+    status: normalizeFeedbackStatus(item.status),
+    pageUrl: item.pageUrl || "",
+    createdAt: item.createdAt || now,
+    updatedAt: item.updatedAt || null,
+    updatedBy: item.updatedBy || null,
   }));
   if (!nextState.members.length) {
     nextState.members.push(createOwnerMember(now), createSeedAdminMember(now));
@@ -425,6 +468,30 @@ function getRoleLabel(role) {
   return ROLE_LABELS[role] || ROLE_LABELS.member;
 }
 
+function normalizeFeedbackType(type) {
+  return Object.prototype.hasOwnProperty.call(FEEDBACK_TYPE_LABELS, type) ? type : "other";
+}
+
+function normalizeFeedbackStatus(status) {
+  return Object.prototype.hasOwnProperty.call(FEEDBACK_STATUS_LABELS, status) ? status : "new";
+}
+
+function getFeedbackTypeLabel(type) {
+  return FEEDBACK_TYPE_LABELS[normalizeFeedbackType(type)];
+}
+
+function getFeedbackStatusLabel(status) {
+  return FEEDBACK_STATUS_LABELS[normalizeFeedbackStatus(status)];
+}
+
+function getFeedbackStatusClass(status) {
+  const normalizedStatus = normalizeFeedbackStatus(status);
+  if (normalizedStatus === "done") return "blue";
+  if (normalizedStatus === "closed") return "coral";
+  if (normalizedStatus === "reviewing") return "gold";
+  return "";
+}
+
 function loadSessionMemberId() {
   const stored = localStorage.getItem(SESSION_KEY);
   if (state.members.some((member) => member.id === stored)) return stored;
@@ -454,6 +521,7 @@ function render() {
   renderTabs();
   renderSummary();
   renderDashboard();
+  renderFeedback();
   renderAdmin();
   applyHashEventFocus();
   scheduleAutoCancelCheck();
@@ -535,6 +603,12 @@ function renderDashboardFilterButtons() {
   document.querySelectorAll("[data-dashboard-filter]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.dashboardFilter === dashboardFilter);
   });
+}
+
+function renderFeedback() {
+  const activeMember = getActiveMember();
+  const myFeedback = getSortedFeedbackItems().filter((item) => item.memberId === activeMember.id);
+  els.feedbackList.innerHTML = renderFeedbackItems(myFeedback, { admin: false });
 }
 
 function getDashboardFilteredEvents(events) {
@@ -674,6 +748,7 @@ function renderAdmin() {
     els.adminReport.innerHTML = "";
     els.memberRoster.innerHTML = "";
     els.signupRequests.innerHTML = "";
+    els.adminFeedbackList.innerHTML = "";
     els.confirmQueue.innerHTML = "";
     return;
   }
@@ -687,6 +762,7 @@ function renderAdmin() {
 
   renderConfirmFilterButtons();
   els.signupRequests.innerHTML = renderSignupRequests();
+  els.adminFeedbackList.innerHTML = renderFeedbackItems(getSortedFeedbackItems(), { admin: true });
   els.adminReport.innerHTML = renderReportTable(month, monthEvents);
   els.memberRoster.innerHTML = renderMemberRoster();
   els.confirmQueue.innerHTML = renderConfirmQueue(monthEvents);
@@ -792,6 +868,45 @@ function renderSignupRequests() {
       </table>
     </div>
   `;
+}
+
+function renderFeedbackItems(items, options = {}) {
+  if (!items.length) {
+    return `<div class="empty-state compact">등록된 건의사항이 없습니다.</div>`;
+  }
+
+  return items
+    .map((item) => {
+      const statusActions = options.admin ? renderFeedbackStatusActions(item) : "";
+      const author = options.admin
+        ? `<p class="event-note small">작성: ${escapeHtml(item.memberName)} · ${escapeHtml(formatDateTime(new Date(item.createdAt)))}</p>`
+        : `<p class="event-note small">${escapeHtml(formatDateTime(new Date(item.createdAt)))}</p>`;
+
+      return `
+        <article class="feedback-card">
+          <div class="event-meta">
+            <span class="pill">${escapeHtml(getFeedbackTypeLabel(item.type))}</span>
+            <span class="pill ${getFeedbackStatusClass(item.status)}">${escapeHtml(getFeedbackStatusLabel(item.status))}</span>
+          </div>
+          <h3>${escapeHtml(item.subject)}</h3>
+          <p class="feedback-message">${formatFeedbackMessage(item.message)}</p>
+          ${author}
+          ${statusActions ? `<div class="feedback-actions">${statusActions}</div>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderFeedbackStatusActions(item) {
+  return ["new", "reviewing", "done", "closed"]
+    .filter((status) => status !== item.status)
+    .map((status) => `
+      <button class="plain-btn" type="button" data-action="set-feedback-status" data-feedback-id="${escapeHtml(item.id)}" data-status="${status}">
+        <span>${escapeHtml(getFeedbackStatusLabel(status))}</span>
+      </button>
+    `)
+    .join("");
 }
 
 function renderMemberRoster() {
@@ -1154,6 +1269,54 @@ function setMemberRole(memberId, role) {
   render();
 }
 
+function submitFeedback() {
+  if (!requireLogin()) return;
+
+  const activeMember = getActiveMember();
+  const type = normalizeFeedbackType(els.feedbackType.value);
+  const subject = els.feedbackSubject.value.trim();
+  const message = els.feedbackMessage.value.trim();
+  if (!subject || !message) {
+    showToast("제목과 내용을 입력해주세요.");
+    return;
+  }
+
+  state.feedbackItems.unshift({
+    id: createId("feedback"),
+    memberId: activeMember.id,
+    memberName: activeMember.name,
+    type,
+    subject,
+    message,
+    status: "new",
+    pageUrl: window.location.href.split("#")[0],
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+    updatedBy: null,
+  });
+  saveState();
+  els.feedbackForm.reset();
+  showToast("건의사항을 보냈습니다.");
+  render();
+}
+
+function setFeedbackStatus(feedbackId, status) {
+  if (!isActiveMemberAdmin()) {
+    showToast("운영진만 건의사항 상태를 변경할 수 있습니다.");
+    return;
+  }
+
+  const item = state.feedbackItems.find((candidate) => candidate.id === feedbackId);
+  if (!item) return;
+
+  item.status = normalizeFeedbackStatus(status);
+  item.updatedAt = new Date().toISOString();
+  item.updatedBy = activeMemberId;
+  saveState();
+  showToast(`건의사항을 ${getFeedbackStatusLabel(item.status)} 상태로 변경했습니다.`);
+  render();
+}
+
 function createEvent() {
   if (!requireLogin()) return;
 
@@ -1404,6 +1567,11 @@ function deleteMember(memberId) {
   if (!window.confirm(`${member.name} 회원을 제거할까요?`)) return;
 
   state.members = state.members.filter((candidate) => candidate.id !== memberId);
+  state.feedbackItems.forEach((item) => {
+    if (item.memberId === memberId) {
+      item.memberId = null;
+    }
+  });
   state.events.forEach((event) => {
     delete event.rsvps?.[memberId];
     delete event.attendanceDraft?.[memberId];
@@ -1683,6 +1851,10 @@ function getSortedEvents() {
   return [...state.events].sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
 }
 
+function getSortedFeedbackItems() {
+  return [...state.feedbackItems].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
 function isPastEvent(event) {
   return new Date(event.endAt) <= new Date();
 }
@@ -1948,6 +2120,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function formatFeedbackMessage(message) {
+  return escapeHtml(message).replaceAll("\n", "<br>");
 }
 
 function toCsvCell(value) {
