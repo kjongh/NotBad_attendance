@@ -30,13 +30,13 @@
           </label>
           <label>
             <span>PIN</span>
-            <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password" minlength="4" required />
+            <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password" minlength="6" maxlength="6" pattern="[0-9]{6}" required />
           </label>
           <button class="primary-btn" type="submit">
             <span aria-hidden="true">→</span>
             <span>입장</span>
           </button>
-          <p class="auth-help">쥬스 계정은 첫 로그인 때 입력한 PIN으로 초기 설정됩니다.</p>
+          <p class="auth-help">쥬스 계정은 첫 로그인 때 입력한 6자리 PIN으로 초기 설정됩니다.</p>
         </form>
 
         <form id="signupForm" class="auth-form" hidden>
@@ -46,12 +46,13 @@
           </label>
           <label>
             <span>PIN</span>
-            <input id="signupPin" type="password" inputmode="numeric" autocomplete="new-password" minlength="4" required />
+            <input id="signupPin" type="password" inputmode="numeric" autocomplete="new-password" minlength="6" maxlength="6" pattern="[0-9]{6}" required />
           </label>
           <button class="primary-btn" type="submit">
             <span aria-hidden="true">+</span>
-            <span>회원 가입</span>
+            <span>가입 요청</span>
           </button>
+          <p class="auth-help">운영진 승인 후 로그인할 수 있습니다.</p>
         </form>
       </div>
     </section>
@@ -228,6 +229,13 @@
 
           <div class="admin-panel">
             <div class="roster-head">
+              <h3>가입 승인</h3>
+            </div>
+            <div id="signupRequests" class="signup-requests"></div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="roster-head">
               <h3>출석 확정 승인</h3>
               <div class="segmented-control" aria-label="출석 확정 상태 필터">
                 <button class="segment is-active" type="button" data-confirm-filter="needs">확정 필요</button>
@@ -258,7 +266,7 @@
 
         <label>
           <span>초기 PIN</span>
-          <input id="memberPin" type="password" inputmode="numeric" minlength="4" required autocomplete="new-password" />
+          <input id="memberPin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password" />
         </label>
 
         <label id="adminRoleLabel" class="check-row">

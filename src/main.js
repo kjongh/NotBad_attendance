@@ -16,11 +16,13 @@ const RSVP_LABELS = {
 };
 
 const REQUIRED_FINAL_APPROVALS = 2;
+const PIN_PATTERN = /^\d{6}$/;
 
 const state = {
   club: { name: "NOTBAD" },
   members: [],
   events: [],
+  signupRequests: [],
 };
 let activeMemberId = null;
 let activeView = "dashboard";
@@ -83,6 +85,7 @@ const els = {
   reportMonth: document.querySelector("#reportMonth"),
   adminReport: document.querySelector("#adminReport"),
   memberRoster: document.querySelector("#memberRoster"),
+  signupRequests: document.querySelector("#signupRequests"),
   confirmQueue: document.querySelector("#confirmQueue"),
   exportCsv: document.querySelector("#exportCsv"),
   copyMonthSummary: document.querySelector("#copyMonthSummary"),
@@ -129,6 +132,7 @@ function shouldBootstrapSupabaseFromLocal(remoteState, localState) {
   const localHasUserData =
     localState.events.length > 0 ||
     localState.members.length > 1 ||
+    localState.signupRequests.length > 0 ||
     Boolean(localSeedMember?.pinHash);
 
   return remoteIsSeedOnly && localHasUserData;
@@ -138,6 +142,7 @@ function replaceState(nextState) {
   state.club = nextState.club;
   state.members = nextState.members;
   state.events = nextState.events;
+  state.signupRequests = nextState.signupRequests;
 }
 
 function bindEvents() {
@@ -257,6 +262,12 @@ function bindEvents() {
     if (action === "delete-member") {
       deleteMember(target.dataset.memberId);
     }
+    if (action === "approve-signup") {
+      approveSignupRequest(target.dataset.requestId);
+    }
+    if (action === "reject-signup") {
+      rejectSignupRequest(target.dataset.requestId);
+    }
   });
 
   document.body.addEventListener("change", (event) => {
@@ -292,6 +303,7 @@ function loadState() {
       },
     ],
     events: [],
+    signupRequests: [],
   };
 }
 
@@ -319,6 +331,12 @@ function migrateState(nextState) {
     canceledBy: event.canceledBy || null,
     finalizedAt: event.finalizedAt || null,
     finalizedBy: event.finalizedBy || null,
+  }));
+  nextState.signupRequests = (nextState.signupRequests || []).map((request) => ({
+    id: request.id || createId("signup"),
+    name: request.name || "이름 없음",
+    pinHash: request.pinHash || null,
+    requestedAt: request.requestedAt || now,
   }));
   if (!nextState.members.length) {
     nextState.members.push({
@@ -582,6 +600,7 @@ function renderAdmin() {
   if (!isActiveMemberAdmin()) {
     els.adminReport.innerHTML = "";
     els.memberRoster.innerHTML = "";
+    els.signupRequests.innerHTML = "";
     els.confirmQueue.innerHTML = "";
     return;
   }
@@ -594,6 +613,7 @@ function renderAdmin() {
   const monthEvents = getSortedEvents().filter((event) => getMonthKey(new Date(event.startAt)) === month);
 
   renderConfirmFilterButtons();
+  els.signupRequests.innerHTML = renderSignupRequests();
   els.adminReport.innerHTML = renderReportTable(month, monthEvents);
   els.memberRoster.innerHTML = renderMemberRoster();
   els.confirmQueue.innerHTML = renderConfirmQueue(monthEvents);
@@ -651,6 +671,48 @@ function renderReportTable(month, monthEvents) {
             <th>회원</th>
             ${headers}
             <th>합계</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSignupRequests() {
+  if (!state.signupRequests.length) {
+    return `<div class="empty-state compact">대기 중인 가입 요청이 없습니다.</div>`;
+  }
+
+  const rows = state.signupRequests
+    .map((request) => `
+      <tr>
+        <td>${escapeHtml(request.name)}</td>
+        <td>${escapeHtml(formatDateTime(new Date(request.requestedAt)))}</td>
+        <td>
+          <div class="table-actions">
+            <button class="primary-btn" type="button" data-action="approve-signup" data-request-id="${escapeHtml(request.id)}">
+              <span aria-hidden="true">✓</span>
+              <span>승인</span>
+            </button>
+            <button class="danger-btn" type="button" data-action="reject-signup" data-request-id="${escapeHtml(request.id)}">
+              <span aria-hidden="true">×</span>
+              <span>거절</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `)
+    .join("");
+
+  return `
+    <div class="report-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>요청 시각</th>
+            <th>처리</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -802,10 +864,17 @@ function renderConfirmQueue(monthEvents) {
 async function handleLogin() {
   const name = els.loginName.value.trim();
   const pin = els.loginPin.value.trim();
-  if (!name || pin.length < 4) return;
+  if (!name || !isValidPin(pin)) {
+    showToast("PIN은 숫자 6자리여야 합니다.");
+    return;
+  }
 
   const member = findMemberByName(name);
   if (!member) {
+    if (findSignupRequestByName(name)) {
+      showToast("운영진 승인 대기 중입니다.");
+      return;
+    }
     showToast("등록되지 않은 이름입니다. 회원 가입을 먼저 해주세요.");
     return;
   }
@@ -829,7 +898,10 @@ async function handleLogin() {
 async function handleSignup() {
   const name = els.signupName.value.trim();
   const pin = els.signupPin.value.trim();
-  if (!name || pin.length < 4) return;
+  if (!name || !isValidPin(pin)) {
+    showToast("이름과 숫자 6자리 PIN을 입력해주세요.");
+    return;
+  }
 
   if (findMemberByName(name)) {
     showToast("이미 등록된 이름입니다. 로그인해주세요.");
@@ -839,20 +911,24 @@ async function handleSignup() {
     return;
   }
 
-  const member = {
-    id: createId("member"),
+  if (findSignupRequestByName(name)) {
+    showToast("이미 가입 승인 대기 중입니다.");
+    return;
+  }
+
+  const request = {
+    id: createId("signup"),
     name,
-    role: "member",
     pinHash: await hashPin(name, pin),
-    createdAt: new Date().toISOString(),
+    requestedAt: new Date().toISOString(),
   };
 
-  state.members.push(member);
+  state.signupRequests.push(request);
   saveState();
-  setSession(member.id);
   els.signupForm.reset();
-  activeView = "dashboard";
-  showToast("회원 가입 후 로그인했습니다.");
+  setAuthMode("login");
+  els.loginName.value = name;
+  showToast("가입 요청을 보냈습니다. 운영진 승인 후 로그인할 수 있습니다.");
   render();
 }
 
@@ -886,11 +962,18 @@ async function addMember() {
 
   const name = els.memberName.value.trim();
   const pin = els.memberPin.value.trim();
-  if (!name || pin.length < 4) return;
+  if (!name || !isValidPin(pin)) {
+    showToast("이름과 숫자 6자리 PIN을 입력해주세요.");
+    return;
+  }
 
   const exists = state.members.some((member) => normalizeName(member.name) === normalizeName(name));
   if (exists) {
     showToast("이미 등록된 이름입니다.");
+    return;
+  }
+  if (findSignupRequestByName(name)) {
+    showToast("같은 이름의 가입 요청이 대기 중입니다.");
     return;
   }
 
@@ -906,6 +989,52 @@ async function addMember() {
   saveState();
   els.memberDialog.close();
   showToast(`${name} 회원을 추가했습니다.`);
+  render();
+}
+
+function approveSignupRequest(requestId) {
+  if (!isActiveMemberAdmin()) {
+    showToast("운영진만 가입을 승인할 수 있습니다.");
+    return;
+  }
+
+  const request = state.signupRequests.find((candidate) => candidate.id === requestId);
+  if (!request) return;
+
+  if (findMemberByName(request.name)) {
+    state.signupRequests = state.signupRequests.filter((candidate) => candidate.id !== requestId);
+    saveState();
+    showToast("이미 등록된 이름이라 가입 요청을 정리했습니다.");
+    render();
+    return;
+  }
+
+  state.members.push({
+    id: createId("member"),
+    name: request.name,
+    role: "member",
+    pinHash: request.pinHash,
+    createdAt: new Date().toISOString(),
+  });
+  state.signupRequests = state.signupRequests.filter((candidate) => candidate.id !== requestId);
+  saveState();
+  showToast(`${request.name} 가입을 승인했습니다.`);
+  render();
+}
+
+function rejectSignupRequest(requestId) {
+  if (!isActiveMemberAdmin()) {
+    showToast("운영진만 가입 요청을 처리할 수 있습니다.");
+    return;
+  }
+
+  const request = state.signupRequests.find((candidate) => candidate.id === requestId);
+  if (!request) return;
+  if (!window.confirm(`${request.name} 가입 요청을 거절할까요?`)) return;
+
+  state.signupRequests = state.signupRequests.filter((candidate) => candidate.id !== requestId);
+  saveState();
+  showToast("가입 요청을 거절했습니다.");
   render();
 }
 
@@ -1430,6 +1559,14 @@ function isEventCanceled(event) {
 
 function findMemberByName(name) {
   return state.members.find((member) => normalizeName(member.name) === normalizeName(name));
+}
+
+function findSignupRequestByName(name) {
+  return state.signupRequests.find((request) => normalizeName(request.name) === normalizeName(name));
+}
+
+function isValidPin(pin) {
+  return PIN_PATTERN.test(pin);
 }
 
 async function hashPin(name, pin) {

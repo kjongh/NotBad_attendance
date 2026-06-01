@@ -15,6 +15,7 @@ export async function loadStateFromSupabase() {
       draftsResult,
       confirmedResult,
       approvalsResult,
+      signupRequestsResult,
     ] = await Promise.all([
       supabase.from("members").select("*").order("created_at"),
       supabase.from("events").select("*").order("start_at"),
@@ -22,6 +23,7 @@ export async function loadStateFromSupabase() {
       supabase.from("attendance_drafts").select("*"),
       supabase.from("confirmed_attendance").select("*"),
       supabase.from("final_approvals").select("*"),
+      supabase.from("signup_requests").select("*").order("requested_at"),
     ]);
 
     const results = [
@@ -31,6 +33,7 @@ export async function loadStateFromSupabase() {
       draftsResult,
       confirmedResult,
       approvalsResult,
+      signupRequestsResult,
     ];
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
@@ -95,6 +98,12 @@ export async function loadStateFromSupabase() {
         createdAt: row.created_at,
       })),
       events: [...eventsById.values()],
+      signupRequests: signupRequestsResult.data.map((row) => ({
+        id: row.id,
+        name: row.name,
+        pinHash: row.pin_hash,
+        requestedAt: row.requested_at,
+      })),
     };
   } catch (error) {
     console.error("Supabase load failed; falling back to localStorage.", error);
@@ -119,9 +128,11 @@ export function queuePersistStateToSupabase(state) {
 async function persistStateToSupabase(state) {
   const memberIds = state.members.map((member) => member.id);
   const eventIds = state.events.map((event) => event.id);
+  const signupRequestIds = (state.signupRequests || []).map((request) => request.id);
 
   await deleteMissingRows("events", "id", eventIds);
   await deleteMissingRows("members", "id", memberIds);
+  await deleteMissingRows("signup_requests", "id", signupRequestIds);
 
   await upsertRows(
     "members",
@@ -131,6 +142,16 @@ async function persistStateToSupabase(state) {
       role: member.role,
       pin_hash: member.pinHash,
       created_at: member.createdAt,
+    })),
+  );
+
+  await upsertRows(
+    "signup_requests",
+    (state.signupRequests || []).map((request) => ({
+      id: request.id,
+      name: request.name,
+      pin_hash: request.pinHash,
+      requested_at: request.requestedAt,
     })),
   );
 

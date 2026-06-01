@@ -1,9 +1,20 @@
+-- MVP data schema for the current frontend sync prototype.
+-- Do not treat the policies at the bottom of this file as public-launch security.
+-- A public release needs Supabase Auth or Edge Functions so RLS can verify the actor.
+
 create table if not exists public.members (
   id text primary key,
   name text not null unique,
   role text not null default 'member' check (role in ('member', 'admin')),
   pin_hash text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.signup_requests (
+  id text primary key,
+  name text not null unique,
+  pin_hash text not null,
+  requested_at timestamptz not null default now()
 );
 
 create table if not exists public.events (
@@ -63,6 +74,7 @@ values ('member-juice', '쥬스', 'admin', null)
 on conflict (id) do nothing;
 
 alter table public.members enable row level security;
+alter table public.signup_requests enable row level security;
 alter table public.events enable row level security;
 alter table public.rsvps enable row level security;
 alter table public.attendance_drafts enable row level security;
@@ -71,6 +83,8 @@ alter table public.final_approvals enable row level security;
 
 drop policy if exists "MVP read members" on public.members;
 drop policy if exists "MVP write members" on public.members;
+drop policy if exists "MVP read signup requests" on public.signup_requests;
+drop policy if exists "MVP write signup requests" on public.signup_requests;
 drop policy if exists "MVP read events" on public.events;
 drop policy if exists "MVP write events" on public.events;
 drop policy if exists "MVP read rsvps" on public.rsvps;
@@ -85,6 +99,11 @@ drop policy if exists "MVP write final approvals" on public.final_approvals;
 create policy "MVP read members" on public.members
   for select using (true);
 create policy "MVP write members" on public.members
+  for all using (true) with check (true);
+
+create policy "MVP read signup requests" on public.signup_requests
+  for select using (true);
+create policy "MVP write signup requests" on public.signup_requests
   for all using (true) with check (true);
 
 create policy "MVP read events" on public.events
